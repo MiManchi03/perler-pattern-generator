@@ -1,4 +1,17 @@
-function Controls({ settings, onSettingsChange, onDownload, canDownload }) {
+function Controls({ 
+  settings, 
+  onSettingsChange, 
+  onDownload, 
+  canDownload,
+  isEditMode,
+  onToggleEditMode,
+  onUndo,
+  canUndo,
+  onReset,
+  canReset,
+  onSave,
+  canSave
+}) {
   const handleChange = (key, value) => {
     onSettingsChange({ ...settings, [key]: value });
   };
@@ -16,21 +29,6 @@ function Controls({ settings, onSettingsChange, onDownload, canDownload }) {
           <option value={80}>80 x 80 (大型)</option>
           <option value={100}>100 x 100 (超大型)</option>
           <option value={150}>150 x 150 (精细)</option>
-        </select>
-      </div>
-
-      <div className="control-group">
-        <label>颜色数量</label>
-        <select
-          value={settings.colorCount}
-          onChange={(e) => handleChange('colorCount', Number(e.target.value))}
-        >
-          <option value={8}>8 色 (简约)</option>
-          <option value={16}>16 色 (标准)</option>
-          <option value={32}>32 色 (丰富)</option>
-          <option value={64}>64 色 (完整)</option>
-          <option value={100}>100 色 (超丰富)</option>
-          <option value={256}>256 色 (接近原图)</option>
         </select>
       </div>
 
@@ -61,6 +59,46 @@ function Controls({ settings, onSettingsChange, onDownload, canDownload }) {
             />
             显示网格线
           </label>
+        </div>
+      </div>
+
+      {/* 自定义颜色功能 */}
+      <div className="control-group edit-mode-group">
+        <button 
+          className={`btn ${isEditMode ? 'btn-active' : ''}`}
+          onClick={onToggleEditMode}
+        >
+          🎨 {isEditMode ? '退出编辑' : '自定义格子'}
+        </button>
+        
+        <div className="edit-mode-actions">
+          <button 
+            className="btn btn-small"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="撤销"
+          >
+            ↩️ 撤销
+          </button>
+          <button 
+            className="btn btn-small"
+            onClick={onReset}
+            disabled={!canReset}
+            title="重置"
+          >
+            🔄 重置
+          </button>
+        </div>
+        
+        <div className="edit-mode-actions">
+          <button 
+            className="btn btn-small"
+            onClick={onSave}
+            disabled={!canSave}
+            title="保存修改"
+          >
+            💾 保存
+          </button>
         </div>
       </div>
 

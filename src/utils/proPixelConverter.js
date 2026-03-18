@@ -3,7 +3,7 @@
 import { perlerColors, colorDistance, ciede2000, findClosestColor, calculateGridColorsByUniquePrinciple } from './gridBasedConverter.js';
 
 // 主转换函数
-export function proImageToPixelGrid(imageData, width, height, colorCount, targetSize = 50) {
+export function proImageToPixelGrid(imageData, width, height, targetSize = 50) {
   // 使用新的基于格子的独苗原则算法
   return calculateGridColorsByUniquePrinciple(imageData.data, width, height, targetSize);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-function PatternCanvas({ pixelData, settings }) {
+function PatternCanvas({ pixelData, settings, isEditMode, onCellClick, getCellColor }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -45,10 +45,21 @@ function PatternCanvas({ pixelData, settings }) {
         const posX = headerSize + x * cellSize;
         const posY = headerSize + y * cellSize;
 
+        // 获取颜色（考虑修改）
+        const cellRgb = getCellColor ? getCellColor(cell, x, y) : cell?.rgb;
+        const cellHex = cellRgb ? rgbToHex(cellRgb) : null;
+
         // 绘制格子背景
-        if (cell) {
-          ctx.fillStyle = cell.hex;
+        if (cellHex) {
+          ctx.fillStyle = cellHex;
           ctx.fillRect(posX, posY, cellSize, cellSize);
+          
+          // 编辑模式下格子边框高亮
+          if (isEditMode) {
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(posX + 1, posY + 1, cellSize - 2, cellSize - 2);
+          }
         } else {
           ctx.fillStyle = '#f0f0f0';
           ctx.fillRect(posX, posY, cellSize, cellSize);
@@ -56,8 +67,9 @@ function PatternCanvas({ pixelData, settings }) {
 
         // 绘制网格线
         if (settings.showGrid) {
-          ctx.strokeStyle = '#cccccc';
-          ctx.lineWidth = 0.5;
+          ctx.strokeStyle = isEditMode ? '#aaa' : '#cccccc';
+          ctx.lineWidth = isEditMode ? 1 : 0.5;
+          
           // 只绘制内部网格线，避免边界超出
           if (x < grid[0].length - 1) {
             ctx.beginPath();
@@ -86,21 +98,17 @@ function PatternCanvas({ pixelData, settings }) {
           }
         }
 
-// 绘制色号
-        if (settings.showColorCode && cell) {
-          ctx.fillStyle = getContrastColor(cell.rgb);
-          // 字体大小自适应单元格大小
+        // 绘制色号
+        if (settings.showColorCode && cell && cellRgb) {
+          ctx.fillStyle = getContrastColor(cellRgb);
           const fontSize = Math.max(6, Math.floor(cellSize * 0.4));
-          // 改进字体渲染以提高可读性
           ctx.font = `${fontSize}px 'Arial', 'Helvetica', sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           
-          // 关键修复：使用描边+填充的方式确保在任何背景下都清晰可见
           ctx.strokeStyle = ctx.fillStyle === '#000000' ? '#ffffff' : '#000000';
           ctx.lineWidth = Math.max(1, Math.floor(fontSize * 0.15));
           
-          // 先描边再填充，确保字体清晰
           ctx.strokeText(cell.id, posX + cellSize / 2, posY + cellSize / 2, cellSize * 0.8);
           ctx.fillText(cell.id, posX + cellSize / 2, posY + cellSize / 2);
         }
@@ -139,7 +147,7 @@ function PatternCanvas({ pixelData, settings }) {
       ctx.lineTo(width, headerSize);
       ctx.stroke();
     }
-  }, [pixelData, settings]);
+  }, [pixelData, settings, isEditMode, getCellColor]);
 
   // 处理鼠标滚轮缩放
   const handleWheel = (e) => {
@@ -151,6 +159,8 @@ function PatternCanvas({ pixelData, settings }) {
 
   // 处理鼠标按下开始拖拽
   const handleMouseDown = (e) => {
+    // 如果在编辑模式下点击，不触发拖拽
+    if (isEditMode) return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
   };
@@ -172,11 +182,36 @@ function PatternCanvas({ pixelData, settings }) {
     setIsDragging(false);
   };
 
+  // 处理格子点击
+  const handleClick = (e) => {
+    if (!isEditMode) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const headerSize = settings.showRowCol ? 40 : 0;
+    const cellSize = 20;
+    
+    const x = Math.floor((e.clientX - rect.left - headerSize) / cellSize);
+    const y = Math.floor((e.clientY - rect.top - headerSize) / cellSize);
+    
+    const grid = pixelData.grid;
+    if (x >= 0 && x < grid[0].length && y >= 0 && y < grid.length) {
+      onCellClick && onCellClick(x, y, e.clientX, e.clientY);
+    }
+  };
+
   // 根据背景色选择对比色文字
   function getContrastColor(rgb) {
     const [r, g, b] = rgb;
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
     return brightness > 128 ? '#000000' : '#ffffff';
+  }
+
+  // RGB转Hex
+  function rgbToHex(rgb) {
+    return `#${((1 << 24) + (rgb[0] << 16) + (rgb[1] << 8) + rgb[2]).toString(16).slice(1).toUpperCase()}`;
   }
 
   return (
@@ -188,13 +223,14 @@ function PatternCanvas({ pixelData, settings }) {
         height: '600px',
         overflow: 'auto',
         position: 'relative',
-        cursor: isDragging ? 'grabbing' : 'grab'
+        cursor: isDragging ? 'grabbing' : (isEditMode ? 'crosshair' : 'grab')
       }}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
     >
       <div 
         style={{
@@ -218,7 +254,7 @@ function PatternCanvas({ pixelData, settings }) {
           缩放: {Math.round(scale * 100)}%
         </p>
         <p style={{ margin: '5px 0 0 0', fontSize: '10px', color: '#666' }}>
-          提示: 鼠标滚轮缩放，拖拽平移
+          {isEditMode ? '提示: 点击格子可修改颜色' : '提示: 鼠标滚轮缩放，拖拽平移'}
         </p>
       </div>
     </div>
