@@ -467,6 +467,7 @@ function App() {
         selectedCell={selectedCell}
         cellId={selectedCellId}
         currentColor={selectedCellOriginalColor}
+        colorMap={pixelData?.colors || new Map()}
       />
 
       {/* 隐藏的 canvas 用于图片处理 */}

@@ -6,7 +6,8 @@ import {
   sortColorsByRgb, 
   generateRainbowGradient,
   getContrastColor,
-  isColorEqual
+  isColorEqual,
+  generateColorId
 } from '../utils/ColorUtils';
 
 function ColorBubble({ 
@@ -21,7 +22,8 @@ function ColorBubble({
   position = { x: 0, y: 0 },
   selectedCell, // 新增：选中的格子位置
   cellId, // 新增：格子的颜色编号
-  currentColor // 新增：当前格子的颜色
+  currentColor, // 新增：当前格子的颜色
+  colorMap // 新增：颜色编号映射
 }) {
   const [selectedColor, setSelectedColor] = useState(originalColor || [255, 0, 0]);
   const [hue, setHue] = useState(() => {
@@ -233,7 +235,7 @@ function ColorBubble({
             <div 
               className="preview-cell"
               style={{ 
-                backgroundColor: rgbToHex(selectedColor),
+                backgroundColor: previewColor,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -251,7 +253,7 @@ function ColorBubble({
                   fontSize: '16px'
                 }}
               >
-                {cellId}
+                {getColorIdFromMap(selectedColor, colorMap)}
               </span>
             </div>
           </div>
@@ -341,6 +343,25 @@ function ColorBubble({
       </div>
     </div>
   );
+}
+
+// 根据RGB颜色从颜色映射中查找对应的颜色编号
+function getColorIdFromMap(rgb, colorMap) {
+  if (!rgb || !colorMap) return 'A';
+  
+  // 遍历颜色映射，查找匹配的RGB颜色
+  for (const [colorId, colorInfo] of colorMap) {
+    if (colorInfo && 
+        colorInfo.rgb && 
+        colorInfo.rgb[0] === rgb[0] && 
+        colorInfo.rgb[1] === rgb[1] && 
+        colorInfo.rgb[2] === rgb[2]) {
+      return colorId;
+    }
+  }
+  
+  // 如果没有找到匹配的颜色，返回默认编号
+  return 'A';
 }
 
 // 简化的HSL转RGB
