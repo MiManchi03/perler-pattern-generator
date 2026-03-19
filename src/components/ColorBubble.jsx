@@ -75,8 +75,8 @@ function ColorBubble({
     const newHue = Number(e.target.value);
     setHue(newHue);
     // 更新选中颜色为当前色相的纯色
-    const s = 100;
-    const l = 50;
+    const s = 1.0; // 饱和度 0-1
+    const l = 0.5; // 亮度 0-1
     const h = newHue / 360;
     const rgb = hslToRgbSimple(h, s, l);
     setSelectedColor(rgb);

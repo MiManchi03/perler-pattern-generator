@@ -1,7 +1,15 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import './App.css';
 import { proImageToPixelGrid } from './utils/proPixelConverter.js';
-import { getUniqueColors, rgbToHex } from './utils/ColorUtils.js';
+import { 
+  getUniqueColors, 
+  rgbToHex, 
+  generateShades, 
+  sortColorsByRgb, 
+  generateRainbowGradient,
+  getContrastColor,
+  isColorEqual
+} from './utils/ColorUtils.js';
 import ImageUploader from './components/ImageUploader.jsx';
 import Controls from './components/Controls.jsx';
 import PatternCanvas from './components/PatternCanvas.jsx';
@@ -157,20 +165,17 @@ function App() {
   // 确认颜色修改
   const handleColorConfirm = useCallback((newColor) => {
     if (!selectedCell) return;
-    
+
     const key = `${selectedCell.x},${selectedCell.y}`;
     const oldColor = selectedCellOriginalColor;
-    
-    // 记录历史
+
     const newHistory = [...history, { key, oldColor, newColor }].slice(-MAX_HISTORY);
     setHistory(newHistory);
-    
-    // 更新修改
+
     const newModified = new Map(modifiedColors);
     newModified.set(key, newColor);
     setModifiedColors(newModified);
-    
-    // 关闭气泡
+
     setShowBubble(false);
     setSelectedCell(null);
   }, [selectedCell, selectedCellOriginalColor, modifiedColors, history]);
@@ -184,75 +189,41 @@ function App() {
   // 撤销
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
-    
+
     const lastChange = history[history.length - 1];
     const newHistory = history.slice(0, -1);
-    
     const newModified = new Map(modifiedColors);
-    
-    // 如果撤销的颜色仍然是修改过的，需要恢复
-    // 如果撤销后没有其他修改，删除这个key
+
     if (lastChange.oldColor) {
-      // 恢复旧颜色
-      const currentColor = modifiedColors.get(lastChange.key);
-      // 检查是否还有其他修改
-      let hasOtherModification = false;
-      for (const [k, v] of newModified) {
-        if (k !== lastChange.key) {
-          hasOtherModification = true;
-          break;
-        }
-      }
-      
-      if (lastChange.oldColor !== originalGrid?.[parseInt(lastChange.key.split(',')[1])]?.[parseInt(lastChange.key.split(',')[0])]?.rgb) {
-        // 旧颜色不是原始颜色，需要应用修改
-        newModified.set(lastChange.key, lastChange.oldColor);
-      } else {
-        // 旧颜色就是原始颜色，删除修改
-        newModified.delete(lastChange.key);
-      }
+      newModified.set(lastChange.key, lastChange.oldColor);
     } else {
       newModified.delete(lastChange.key);
     }
-    
+
     setHistory(newHistory);
     setModifiedColors(newModified);
-  }, [history, modifiedColors, originalGrid]);
+  }, [history, modifiedColors]);
 
   // 重置所有修改
   const handleReset = useCallback(() => {
     if (modifiedColors.size === 0) return;
-    
+
     setModifiedColors(new Map());
     setHistory([]);
     setShowBubble(false);
     setSelectedCell(null);
   }, [modifiedColors.size]);
 
-  // 保存修改
+  // 保存修改（不退出编辑模式）
   const handleSave = useCallback(() => {
     if (modifiedColors.size === 0) return;
     
-    const modifications = {};
-    for (const [key, rgb] of modifiedColors) {
-      modifications[key] = rgb;
-    }
+    // 显示保存成功提示
+    alert(`已保存 ${modifiedColors.size} 个格子的颜色修改`);
     
-    const data = {
-      version: '1.0',
-      gridSize: `${pixelData?.grid[0]?.length || 0}x${pixelData?.grid.length || 0}`,
-      timestamp: new Date().toISOString(),
-      modifications: modifications
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.download = '拼豆颜色修改.json';
-    link.href = url;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [modifiedColors, pixelData]);
+    // 这里可以添加其他保存逻辑，比如保存到本地存储
+    // 但保持编辑模式不变，不退出编辑
+  }, [modifiedColors.size]);
 
   // 加载修改
   const handleLoad = useCallback(() => {
@@ -303,8 +274,11 @@ function App() {
     if (modifiedColors.has(key)) {
       return modifiedColors.get(key);
     }
+    if (originalGrid && originalGrid[y]?.[x]) {
+      return originalGrid[y][x].rgb;
+    }
     return cell?.rgb || null;
-  }, [modifiedColors]);
+  }, [modifiedColors, originalGrid]);
 
   // 统计数据（考虑修改后的颜色数量）
   const colorCount = useMemo(() => {

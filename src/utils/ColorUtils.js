@@ -167,3 +167,24 @@ export function generateRainbowGradient() {
   }
   return `linear-gradient(to right, ${stops.join(', ')})`;
 }
+
+// 生成颜色ID（字母编码）
+export function generateColorId(rgb) {
+  if (!rgb || !Array.isArray(rgb) || rgb.length !== 3) {
+    return 'A';
+  }
+  
+  // 使用简单的哈希函数生成固定ID
+  const hash = (rgb[0] * 31 + rgb[1] * 17 + rgb[2] * 7) % 26;
+  const baseChar = 'A'.charCodeAt(0);
+  
+  // 单字母ID（A-Z）
+  if (hash < 26) {
+    return String.fromCharCode(baseChar + hash);
+  }
+  
+  // 双字母ID（AA, AB, ...）
+  const firstChar = String.fromCharCode(baseChar + Math.floor(hash / 26));
+  const secondChar = String.fromCharCode(baseChar + (hash % 26));
+  return firstChar + secondChar;
+}

@@ -187,17 +187,19 @@ function PatternCanvas({ pixelData, settings, isEditMode, onCellClick, getCellCo
     if (!isEditMode) return;
     
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !pixelData) return;
     
     const rect = canvas.getBoundingClientRect();
     const headerSize = settings.showRowCol ? 40 : 0;
     const cellSize = 20;
     
-    const x = Math.floor((e.clientX - rect.left - headerSize) / cellSize);
-    const y = Math.floor((e.clientY - rect.top - headerSize) / cellSize);
+    const scaledX = (e.clientX - rect.left) / scale;
+    const scaledY = (e.clientY - rect.top) / scale;
     
-    const grid = pixelData.grid;
-    if (x >= 0 && x < grid[0].length && y >= 0 && y < grid.length) {
+    const x = Math.floor((scaledX - headerSize) / cellSize);
+    const y = Math.floor((scaledY - headerSize) / cellSize);
+    
+    if (x >= 0 && x < pixelData.grid[0].length && y >= 0 && y < pixelData.grid.length) {
       onCellClick && onCellClick(x, y, e.clientX, e.clientY);
     }
   };
