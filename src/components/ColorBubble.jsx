@@ -18,7 +18,10 @@ function ColorBubble({
   onShowMore,
   visibleCount,
   totalCount,
-  position = { x: 0, y: 0 } // 新增：弹窗位置
+  position = { x: 0, y: 0 },
+  selectedCell, // 新增：选中的格子位置
+  cellId, // 新增：格子的颜色编号
+  currentColor // 新增：当前格子的颜色
 }) {
   const [selectedColor, setSelectedColor] = useState(originalColor || [255, 0, 0]);
   const [hue, setHue] = useState(() => {
@@ -27,7 +30,12 @@ function ColorBubble({
     return hsl[0];
   });
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [currentPosition, setCurrentPosition] = useState(position);
+  
   const bubbleRef = useRef(null);
+  const dragHandleRef = useRef(null);
 
   // 生成渐变色
   const shadeColors = useMemo(() => {
@@ -74,21 +82,108 @@ function ColorBubble({
     setSelectedColor(rgb);
   };
 
+  // 处理拖动开始（鼠标和触摸）
+  const handleDragStart = (e) => {
+    // 阻止事件冒泡，避免影响父元素
+    e.stopPropagation();
+    
+    // 排除功能按钮和交互元素
+    const isInteractiveElement = e.target.closest('.close-btn') || 
+                               e.target.closest('.btn-cancel') || 
+                               e.target.closest('.btn-confirm') || 
+                               e.target.closest('.show-more-btn') || 
+                               e.target.closest('.color-swatch') || 
+                               e.target.closest('.rainbow-slider') ||
+                               e.target.closest('.rainbow-track') ||
+                               e.target.closest('.drag-icon');
+    
+    if (!isInteractiveElement) {
+      setIsDragging(true);
+      
+      // 获取坐标（支持触摸事件）
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      
+      setDragOffset({
+        x: clientX - currentPosition.x,
+        y: clientY - currentPosition.y
+      });
+      document.body.style.userSelect = 'none';
+      document.body.style.touchAction = 'none';
+    }
+  };
+
+  // 处理拖动中（鼠标和触摸）
+  const handleDragMove = (e) => {
+    if (isDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 获取坐标（支持触摸事件）
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      
+      setCurrentPosition({
+        x: clientX - dragOffset.x,
+        y: clientY - dragOffset.y
+      });
+    }
+  };
+
+  // 处理拖动结束（鼠标和触摸）
+  const handleDragEnd = (e) => {
+    if (isDragging) {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      setIsDragging(false);
+      document.body.style.userSelect = '';
+      document.body.style.touchAction = '';
+    }
+  };
+
+  // 监听全局鼠标和触摸事件
+  useEffect(() => {
+    if (isDragging) {
+      const handleMove = (e) => handleDragMove(e);
+      const handleUp = (e) => handleDragEnd(e);
+      
+      // 添加鼠标事件监听
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleUp);
+      
+      // 添加触摸事件监听（移动端）
+      document.addEventListener('touchmove', handleMove, { passive: false });
+      document.addEventListener('touchend', handleUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleUp);
+        document.removeEventListener('touchmove', handleMove);
+        document.removeEventListener('touchend', handleUp);
+      };
+    }
+  }, [isDragging, dragOffset]);
+
+  // 重置位置
+  useEffect(() => {
+    setCurrentPosition(position);
+  }, [position]);
+
   if (!visible) return null;
 
   return (
     <div 
-      className="color-bubble-overlay" 
-      onClick={onCancel}
+      className="color-bubble-wrapper"
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        pointerEvents: 'none',
+        pointerEvents: 'auto',
         zIndex: 1000
       }}
+      onClick={onCancel}
     >
       <div 
         ref={bubbleRef}
@@ -96,19 +191,70 @@ function ColorBubble({
         onClick={e => e.stopPropagation()}
         style={{
           position: 'absolute',
-          left: `${position.x}px`,
-          top: `${position.y}px`,
+          left: `${currentPosition.x}px`,
+          top: `${currentPosition.y}px`,
           transform: 'translate(-50%, -100%)',
           marginBottom: '10px',
-          pointerEvents: 'auto'
+          cursor: isDragging ? 'grabbing' : 'grab'
         }}
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
       >
+        {/* 拖动手柄 */}
+        <div 
+          ref={dragHandleRef}
+          className="bubble-drag-handle"
+          title="按住拖动"
+        >
+          <div className="drag-icon">⋮⋮</div>
+        </div>
+        
         {/* 聊天气泡小尾巴 */}
         <div className="bubble-tail"></div>
         
-        {/* 标题 */}
+        {/* 标题和关闭按钮 */}
         <div className="color-bubble-header">
-          自定义颜色
+          <div className="header-left">
+            自定义颜色
+          </div>
+          <button 
+            className="close-btn"
+            onClick={onCancel}
+            title="关闭"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* 当前格子预览 */}
+        <div className="current-cell-preview">
+          <div className="preview-label">当前格子: {selectedCell?.x},{selectedCell?.y}</div>
+          <div className="cell-preview">
+            <div 
+              className="preview-cell"
+              style={{ 
+                backgroundColor: rgbToHex(selectedColor),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '60px',
+                height: '60px',
+                borderRadius: '8px',
+                border: '2px solid #ddd',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              <span 
+                style={{ 
+                  color: getContrastColor(selectedColor),
+                  fontWeight: 'bold',
+                  fontSize: '16px'
+                }}
+              >
+                {cellId}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* 彩虹选择器 */}

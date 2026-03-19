@@ -273,22 +273,19 @@ main {
 }
 
 /* 颜色气泡样式 */
-.color-bubble-overlay {
+.color-bubble-wrapper {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  pointer-events: none;
   z-index: 1000;
 }
 
 .color-bubble {
-  width: 300px;
-  max-height: 400px;
+  width: 320px;
+  max-height: 450px;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -296,6 +293,43 @@ main {
   display: flex;
   flex-direction: column;
   position: relative;
+  border: 1px solid var(--border-color);
+  cursor: grab;
+  pointer-events: auto; /* 确保弹窗可以接收鼠标事件 */
+}
+
+.color-bubble:active {
+  cursor: grabbing;
+}
+
+/* 拖动手柄 */
+.bubble-drag-handle {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 30px;
+  background: var(--primary-color);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  touch-action: none;
+}
+
+.bubble-drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-icon {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  user-select: none;
 }
 
 /* 聊天气泡小尾巴 */
@@ -315,28 +349,132 @@ main {
 .color-bubble-header {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
   color: white;
-  padding: 16px;
+  padding: 12px 16px;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left {
+  flex: 1;
   text-align: center;
 }
 
-.rainbow-selector {
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 交互元素光标 */
+.btn-cancel,
+.btn-confirm,
+.show-more-btn,
+.color-swatch,
+.rainbow-slider {
+  cursor: pointer !important;
+  touch-action: manipulation;
+}
+
+.rainbow-track {
+  cursor: pointer !important;
+  touch-action: manipulation;
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 768px) {
+  .color-bubble {
+    cursor: default;
+  }
+  
+  .color-bubble:active {
+    cursor: default;
+  }
+  
+  .color-swatch {
+    min-height: 30px;
+    min-width: 30px;
+  }
+  
+  .btn-cancel,
+  .btn-confirm {
+    padding: 14px;
+    font-size: 0.9rem;
+  }
+  
+  .close-btn {
+    padding: 8px 12px;
+    font-size: 1.4rem;
+  }
+}
+
+/* 当前格子预览 */
+.current-cell-preview {
   padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: var(--background-color);
+}
+
+.preview-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cell-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.preview-cell {
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.rainbow-selector {
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .rainbow-label {
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   color: var(--text-color);
+  font-size: 0.9rem;
 }
 
 .rainbow-track {
   position: relative;
-  height: 30px;
-  border-radius: 15px;
+  height: 20px;
+  border-radius: 10px;
   overflow: visible;
+  margin-bottom: 4px;
 }
 
 .rainbow-slider {
@@ -346,7 +484,7 @@ main {
   right: 0;
   transform: translateY(-50%);
   width: 100%;
-  height: 20px;
+  height: 16px;
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
@@ -355,18 +493,18 @@ main {
 
 .rainbow-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   background: white;
-  border: 3px solid var(--primary-color);
+  border: 2px solid var(--primary-color);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .current-color-preview {
-  margin-top: 8px;
-  font-size: 0.9rem;
+  margin-top: 4px;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   text-align: center;
 }

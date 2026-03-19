@@ -47,6 +47,14 @@ function App() {
     return cell?.rgb || null;
   }, [selectedCell, originalGrid]);
 
+  // 获取选中格子的颜色编号
+  const selectedCellId = useMemo(() => {
+    if (!selectedCell || !originalGrid) return '';
+    const { x, y } = selectedCell;
+    const cell = originalGrid[y]?.[x];
+    return cell?.id || '';
+  }, [selectedCell, originalGrid]);
+
   // 处理图片上传
   const handleImageUpload = useCallback((file) => {
     const reader = new FileReader();
@@ -398,6 +406,9 @@ function App() {
         visibleCount={visibleColorCount}
         totalCount={allUniqueColors.length}
         position={bubblePosition}
+        selectedCell={selectedCell}
+        cellId={selectedCellId}
+        currentColor={selectedCellOriginalColor}
       />
 
       {/* 隐藏的 canvas 用于图片处理 */}
