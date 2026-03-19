@@ -526,7 +526,7 @@ main {
 /* 渐变色网格 */
 .shade-grid {
   display: grid;
-  grid-template-columns: repeat(11, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 4px;
   margin-bottom: 16px;
 }
@@ -534,7 +534,7 @@ main {
 /* 图纸颜色网格 */
 .palette-grid {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 4px;
   margin-bottom: 12px;
 }
@@ -543,7 +543,7 @@ main {
   aspect-ratio: 1;
   border-radius: 4px;
   cursor: pointer;
-  border: 2px solid transparent;
+  border: 1px solid #e0e0e0;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -1082,12 +1082,12 @@ main {
   }
   
   .shade-grid {
-    grid-template-columns: repeat(11, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 3px;
   }
   
   .palette-grid {
-    grid-template-columns: repeat(10, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 3px;
   }
   

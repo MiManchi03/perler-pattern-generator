@@ -41,6 +41,90 @@ function App() {
   
   const hiddenCanvasRef = useRef(null);
 
+  // 获取周围格子颜色并按距离排序
+  const getSurroundingColors = useMemo(() => {
+    if (!selectedCell || !pixelData) return [];
+    
+    const { x, y } = selectedCell;
+    const grid = pixelData.grid;
+    const colors = new Map();
+    const colorOrder = []; // 记录颜色发现的顺序
+    const maxDistance = 4; // 最多扫描四圈
+    
+    // 原点格子本身
+    const cell = grid[y]?.[x];
+    if (cell?.rgb) {
+      const colorKey = cell.rgb.join(',');
+      if (!colors.has(colorKey)) {
+        colors.set(colorKey, cell.rgb);
+        colorOrder.push(cell.rgb);
+      }
+    }
+    
+    // 从距离1开始，最多到距离4，依次扫描每一圈
+    for (let distance = 1; distance <= maxDistance; distance++) {
+      // 真正的顺时针转圈扫描 - 从最右边开始，一格一格地顺时针走
+      
+      // 当前圈的起点：最右边的格子 (x+distance, y)
+      let currentX = x + distance;
+      let currentY = y;
+      
+      // 移动方向：下、左、上、右（顺时针方向）
+      const directions = [
+        [0, 1],  // 下
+        [-1, 0], // 左
+        [0, -1], // 上
+        [1, 0]   // 右
+      ];
+      
+      // 每个方向的步数：下、左、上、右
+      const stepsPerDirection = [
+        distance * 2,  // 下：移动2*distance步
+        distance * 2,  // 左：移动2*distance步
+        distance * 2,  // 上：移动2*distance步
+        distance * 2 - 1  // 右：移动2*distance-1步（避免重复起点）
+      ];
+      
+      // 当前移动方向索引
+      let directionIndex = 0;
+      
+      // 当前方向需要移动的步数
+      let stepsInDirection = stepsPerDirection[directionIndex];
+      
+      // 开始顺时针转圈扫描
+      for (let step = 0; step < distance * 8 - 1; step++) {
+        // 检查当前格子
+        if (currentX >= 0 && currentX < grid[0].length && currentY >= 0 && currentY < grid.length) {
+          const cell = grid[currentY][currentX];
+          if (cell?.rgb) {
+            const colorKey = cell.rgb.join(',');
+            if (!colors.has(colorKey)) {
+              colors.set(colorKey, cell.rgb);
+              colorOrder.push(cell.rgb);
+            }
+          }
+        }
+        
+        // 移动到下一个格子
+        const [dx, dy] = directions[directionIndex];
+        currentX += dx;
+        currentY += dy;
+        
+        // 减少当前方向的剩余步数
+        stepsInDirection--;
+        
+        // 如果当前方向走完了，切换到下一个方向
+        if (stepsInDirection === 0) {
+          directionIndex = (directionIndex + 1) % 4;
+          stepsInDirection = stepsPerDirection[directionIndex];
+        }
+      }
+    }
+    
+    // 按发现顺序返回颜色
+    return colorOrder;
+  }, [selectedCell, pixelData]);
+
   // 获取所有唯一颜色
   const allUniqueColors = useMemo(() => {
     if (!pixelData) return [];
@@ -373,12 +457,12 @@ function App() {
       <ColorBubble
         visible={showBubble}
         originalColor={selectedCellOriginalColor}
-        allColors={allUniqueColors}
+        allColors={getSurroundingColors.length > 0 ? getSurroundingColors : allUniqueColors}
         onConfirm={handleColorConfirm}
         onCancel={handleColorCancel}
         onShowMore={handleShowMore}
         visibleCount={visibleColorCount}
-        totalCount={allUniqueColors.length}
+        totalCount={getSurroundingColors.length > 0 ? getSurroundingColors.length : allUniqueColors.length}
         position={bubblePosition}
         selectedCell={selectedCell}
         cellId={selectedCellId}
