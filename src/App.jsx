@@ -8,7 +8,8 @@ import {
   sortColorsByRgb, 
   generateRainbowGradient,
   getContrastColor,
-  isColorEqual
+  isColorEqual,
+  generateColorId
 } from './utils/ColorUtils.js';
 import ImageUploader from './components/ImageUploader.jsx';
 import Controls from './components/Controls.jsx';
@@ -36,7 +37,9 @@ function App() {
   const [showBubble, setShowBubble] = useState(false);
   const [bubblePosition, setBubblePosition] = useState({ x: 0, y: 0 }); // 气泡位置
   const [modifiedColors, setModifiedColors] = useState(new Map()); // "x,y" → rgb
+  const [previewColor, setPreviewColor] = useState(null); // 弹窗内实时预览颜色
   const [history, setHistory] = useState([]); // [{key, oldColor, newColor}]
+  const [redoHistory, setRedoHistory] = useState([]); // [{key, oldColor, newColor}]
   const [visibleColorCount, setVisibleColorCount] = useState(20); // 分页显示
   
   const hiddenCanvasRef = useRef(null);
@@ -231,20 +234,35 @@ function App() {
       // 退出编辑模式
       setIsEditMode(false);
       setShowBubble(false);
+      setPreviewColor(null);
       setSelectedCell(null);
     } else {
+      if (!pixelData) {
+        alert('请先上传图片并生成图纸，再使用自定义格子功能');
+        return;
+      }
       // 进入编辑模式
       setIsEditMode(true);
     }
-  }, [isEditMode]);
+  }, [isEditMode, pixelData]);
 
   // 点击格子
   const handleCellClick = useCallback((x, y, clientX, clientY) => {
     if (!isEditMode) return;
+
+    const key = `${x},${y}`;
+    const baseColor = modifiedColors.get(key) || originalGrid?.[y]?.[x]?.rgb || pixelData?.grid?.[y]?.[x]?.rgb || null;
+
     setSelectedCell({ x, y });
+    setPreviewColor(baseColor);
     setBubblePosition({ x: clientX, y: clientY });
     setShowBubble(true);
-  }, [isEditMode]);
+  }, [isEditMode, modifiedColors, originalGrid, pixelData]);
+
+  // 弹窗内实时预览颜色
+  const handleColorPreview = useCallback((newColor) => {
+    setPreviewColor(newColor);
+  }, []);
 
   // 确认颜色修改
   const handleColorConfirm = useCallback((newColor) => {
@@ -255,17 +273,20 @@ function App() {
 
     const newHistory = [...history, { key, oldColor, newColor }].slice(-MAX_HISTORY);
     setHistory(newHistory);
+    setRedoHistory([]);
 
     const newModified = new Map(modifiedColors);
     newModified.set(key, newColor);
     setModifiedColors(newModified);
 
+    setPreviewColor(null);
     setShowBubble(false);
     setSelectedCell(null);
   }, [selectedCell, selectedCellOriginalColor, modifiedColors, history]);
 
   // 取消修改
   const handleColorCancel = useCallback(() => {
+    setPreviewColor(null);
     setShowBubble(false);
     setSelectedCell(null);
   }, []);
@@ -286,7 +307,27 @@ function App() {
 
     setHistory(newHistory);
     setModifiedColors(newModified);
+    setRedoHistory(prev => [...prev, lastChange].slice(-MAX_HISTORY));
   }, [history, modifiedColors]);
+
+  // 还原（重做）
+  const handleRedo = useCallback(() => {
+    if (redoHistory.length === 0) return;
+
+    const lastRedo = redoHistory[redoHistory.length - 1];
+    const newRedoHistory = redoHistory.slice(0, -1);
+    const newModified = new Map(modifiedColors);
+
+    if (lastRedo.newColor) {
+      newModified.set(lastRedo.key, lastRedo.newColor);
+    } else {
+      newModified.delete(lastRedo.key);
+    }
+
+    setRedoHistory(newRedoHistory);
+    setModifiedColors(newModified);
+    setHistory(prev => [...prev, lastRedo].slice(-MAX_HISTORY));
+  }, [redoHistory, modifiedColors]);
 
   // 重置所有修改
   const handleReset = useCallback(() => {
@@ -294,6 +335,8 @@ function App() {
 
     setModifiedColors(new Map());
     setHistory([]);
+    setRedoHistory([]);
+    setPreviewColor(null);
     setShowBubble(false);
     setSelectedCell(null);
   }, [modifiedColors.size]);
@@ -354,6 +397,11 @@ function App() {
 
   // 获取格子颜色（考虑修改）
   const getCellColor = useCallback((cell, x, y) => {
+    // 如果当前正在编辑该格子，优先使用弹窗中的实时预览颜色
+    if (showBubble && selectedCell && selectedCell.x === x && selectedCell.y === y && previewColor) {
+      return previewColor;
+    }
+
     const key = `${x},${y}`;
     if (modifiedColors.has(key)) {
       return modifiedColors.get(key);
@@ -362,7 +410,28 @@ function App() {
       return originalGrid[y][x].rgb;
     }
     return cell?.rgb || null;
-  }, [modifiedColors, originalGrid]);
+  }, [showBubble, selectedCell, previewColor, modifiedColors, originalGrid]);
+
+  // 根据RGB获取当前显示的颜色编号
+  const getColorIdForRgb = useCallback((rgb) => {
+    if (!rgb || !pixelData?.colors) return rgb ? generateColorId(rgb) : '';
+
+    for (const [colorId, colorInfo] of pixelData.colors) {
+      const color = colorInfo?.color || colorInfo;
+      if (color?.rgb && color.rgb[0] === rgb[0] && color.rgb[1] === rgb[1] && color.rgb[2] === rgb[2]) {
+        return color.id || colorId;
+      }
+    }
+
+    return generateColorId(rgb);
+  }, [pixelData]);
+
+  // 获取格子展示信息（颜色 + 编号）
+  const getCellDisplay = useCallback((cell, x, y) => {
+    const rgb = getCellColor(cell, x, y);
+    const id = rgb ? getColorIdForRgb(rgb) : (cell?.id || '');
+    return { rgb, id };
+  }, [getCellColor, getColorIdForRgb]);
 
   // 统计数据（考虑修改后的颜色数量）
   const colorCount = useMemo(() => {
@@ -398,6 +467,8 @@ function App() {
             onToggleEditMode={toggleEditMode}
             onUndo={handleUndo}
             canUndo={history.length > 0}
+            onRedo={handleRedo}
+            canRedo={redoHistory.length > 0}
             onReset={handleReset}
             canReset={modifiedColors.size > 0}
             onSave={handleSave}
@@ -439,6 +510,7 @@ function App() {
                 isEditMode={isEditMode}
                 onCellClick={handleCellClick}
                 getCellColor={getCellColor}
+                getCellDisplay={getCellDisplay}
               />
             ) : (
               <div className="loading">
@@ -458,6 +530,7 @@ function App() {
         visible={showBubble}
         originalColor={selectedCellOriginalColor}
         allColors={getSurroundingColors.length > 0 ? getSurroundingColors : allUniqueColors}
+        onPreview={handleColorPreview}
         onConfirm={handleColorConfirm}
         onCancel={handleColorCancel}
         onShowMore={handleShowMore}

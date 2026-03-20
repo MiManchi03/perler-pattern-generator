@@ -14,6 +14,7 @@ function ColorBubble({
   visible, 
   originalColor, 
   allColors, 
+  onPreview,
   onConfirm, 
   onCancel,
   onShowMore,
@@ -67,6 +68,12 @@ function ColorBubble({
   // 当前选中颜色预览
   const previewColor = rgbToHex(selectedColor);
 
+  // 统一处理选色：同时更新本地状态和外部实时预览
+  const handleColorSelect = (color) => {
+    setSelectedColor(color);
+    onPreview?.(color);
+  };
+
   // 处理滑块滚动
   const handleScroll = (e) => {
     setScrollPosition(e.target.scrollTop);
@@ -81,8 +88,19 @@ function ColorBubble({
     const l = 0.5; // 亮度 0-1
     const h = newHue / 360;
     const rgb = hslToRgbSimple(h, s, l);
-    setSelectedColor(rgb);
+    handleColorSelect(rgb);
   };
+
+  // 每次打开弹窗时，以当前格子的颜色初始化选择器
+  useEffect(() => {
+    if (!visible) return;
+
+    const baseColor = currentColor || originalColor || [255, 0, 0];
+    setSelectedColor(baseColor);
+
+    const hsl = rgbToHsl(baseColor);
+    setHue(hsl[0]);
+  }, [visible, currentColor, originalColor, selectedCell]);
 
   // 处理拖动开始（鼠标和触摸）
   const handleDragStart = (e) => {
@@ -285,15 +303,18 @@ function ColorBubble({
               const hex = rgbToHex(color);
               const isSelected = isColorEqual(color, selectedColor);
               const isOriginal = isColorEqual(color, originalColor);
+              const colorId = getColorIdFromMap(color, colorMap);
               
               return (
                 <div
                   key={`shade-${hex}-${index}`}
                   className={`color-swatch ${isSelected ? 'selected' : ''} ${isOriginal ? 'original' : ''}`}
                   style={{ backgroundColor: hex }}
-                  onClick={() => setSelectedColor(color)}
+                  onClick={() => handleColorSelect(color)}
                 >
-                  {isSelected && <span style={{ color: getContrastColor(color) }}>✓</span>}
+                  <span className="color-id-label" style={{ color: getContrastColor(color) }}>
+                    {colorId}
+                  </span>
                 </div>
               );
             })}
@@ -305,15 +326,18 @@ function ColorBubble({
               const hex = rgbToHex(color);
               const isSelected = isColorEqual(color, selectedColor);
               const isOriginal = isColorEqual(color, originalColor);
+              const colorId = getColorIdFromMap(color, colorMap);
               
               return (
                 <div
                   key={`palette-${hex}-${index}`}
                   className={`color-swatch ${isSelected ? 'selected' : ''} ${isOriginal ? 'original' : ''}`}
                   style={{ backgroundColor: hex }}
-                  onClick={() => setSelectedColor(color)}
+                  onClick={() => handleColorSelect(color)}
                 >
-                  {isSelected && <span style={{ color: getContrastColor(color) }}>✓</span>}
+                  <span className="color-id-label" style={{ color: getContrastColor(color) }}>
+                    {colorId}
+                  </span>
                 </div>
               );
             })}
@@ -347,21 +371,23 @@ function ColorBubble({
 
 // 根据RGB颜色从颜色映射中查找对应的颜色编号
 function getColorIdFromMap(rgb, colorMap) {
-  if (!rgb || !colorMap) return 'A';
+  if (!rgb) return '';
+  if (!colorMap) return generateColorId(rgb);
   
   // 遍历颜色映射，查找匹配的RGB颜色
   for (const [colorId, colorInfo] of colorMap) {
-    if (colorInfo && 
-        colorInfo.rgb && 
-        colorInfo.rgb[0] === rgb[0] && 
-        colorInfo.rgb[1] === rgb[1] && 
-        colorInfo.rgb[2] === rgb[2]) {
-      return colorId;
+    const color = colorInfo?.color || colorInfo;
+    if (color && 
+        color.rgb && 
+        color.rgb[0] === rgb[0] && 
+        color.rgb[1] === rgb[1] && 
+        color.rgb[2] === rgb[2]) {
+      return color.id || colorId;
     }
   }
   
-  // 如果没有找到匹配的颜色，返回默认编号
-  return 'A';
+  // 如果没有找到匹配的颜色，使用稳定生成的编号
+  return generateColorId(rgb);
 }
 
 // 简化的HSL转RGB

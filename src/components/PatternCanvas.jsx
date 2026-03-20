@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-function PatternCanvas({ pixelData, settings, isEditMode, onCellClick, getCellColor }) {
+function PatternCanvas({ pixelData, settings, isEditMode, onCellClick, getCellColor, getCellDisplay }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -46,8 +46,10 @@ function PatternCanvas({ pixelData, settings, isEditMode, onCellClick, getCellCo
         const posY = headerSize + y * cellSize;
 
         // 获取颜色（考虑修改）
-        const cellRgb = getCellColor ? getCellColor(cell, x, y) : cell?.rgb;
+        const cellDisplay = getCellDisplay ? getCellDisplay(cell, x, y) : null;
+        const cellRgb = cellDisplay?.rgb || (getCellColor ? getCellColor(cell, x, y) : cell?.rgb);
         const cellHex = cellRgb ? rgbToHex(cellRgb) : null;
+        const cellId = cellDisplay?.id || cell?.id;
 
         // 绘制格子背景
         if (cellHex) {
@@ -109,8 +111,10 @@ function PatternCanvas({ pixelData, settings, isEditMode, onCellClick, getCellCo
           ctx.strokeStyle = ctx.fillStyle === '#000000' ? '#ffffff' : '#000000';
           ctx.lineWidth = Math.max(1, Math.floor(fontSize * 0.15));
           
-          ctx.strokeText(cell.id, posX + cellSize / 2, posY + cellSize / 2, cellSize * 0.8);
-          ctx.fillText(cell.id, posX + cellSize / 2, posY + cellSize / 2);
+          if (cellId) {
+            ctx.strokeText(cellId, posX + cellSize / 2, posY + cellSize / 2, cellSize * 0.8);
+            ctx.fillText(cellId, posX + cellSize / 2, posY + cellSize / 2);
+          }
         }
       }
     }

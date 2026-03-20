@@ -7,6 +7,8 @@ function Controls({
   onToggleEditMode,
   onUndo,
   canUndo,
+  onRedo,
+  canRedo,
   onReset,
   canReset,
   onSave,
@@ -79,6 +81,14 @@ function Controls({
             title="撤销"
           >
             ↩️ 撤销
+          </button>
+          <button 
+            className="btn btn-small"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="还原"
+          >
+            ↪️ 还原
           </button>
           <button 
             className="btn btn-small"
